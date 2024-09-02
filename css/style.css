@@ -16,6 +16,7 @@ body {
     grid-template-rows: repeat(3, 200px);
     gap: 8px;
     background-color: black;
+    margin: 32px;
 }
 
 .square {

@@ -1,6 +1,15 @@
 let currentPlayer = 'X';
 
 const squares = document.querySelectorAll('.square');
+const newGameBtn = document.querySelector('#newgame');
+
+newGameBtn.addEventListener('click', () => {
+    squares.forEach(s => {
+        s.textContent = '';
+        s.className = 'square';
+        currentPlayer = 'X';
+    })
+})
 
 function switchPlayer() {
     if (currentPlayer === 'X') {
@@ -20,13 +29,14 @@ function getSquareClass(cp) {
             break;
     }
 }
+
+function clickFillSquare(event) {
+    if (!event.target.textContent) {
+        event.target.textContent = currentPlayer;
+        event.target.classList.add(getSquareClass(currentPlayer));
+        switchPlayer();
+    }
+}
 squares.forEach(s => {
-    s.addEventListener('click', (e) => {
-        console.log(e.target.dataset.location)
-        if (!e.target.textContent) {
-            e.target.textContent = currentPlayer;
-            e.target.classList.add(getSquareClass(currentPlayer));
-            switchPlayer();
-        }
-    })
+    s.addEventListener('click', clickFillSquare)
 })
