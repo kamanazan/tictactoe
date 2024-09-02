@@ -77,6 +77,11 @@ function checkWinner() {
             break;
         }
     }
+    const boardIsFull = boardScore.every(b => b !== null);
+    if (!winner && boardIsFull) {
+        winner = 'draw';
+        gameStatus.textContent = 'Draw!';
+    }
 }
 
 function clickFillSquare(event) {
