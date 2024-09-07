@@ -4,6 +4,18 @@ const mutationConfig = {
     subtree: true 
 };
 
+const socket = new WebSocket('ws://localhost:3000');
+socket.onopen = () => {
+    console.log('websocket connected');
+}
+
+socket.onmessage = (event) => {
+    console.log({msg: event.data});
+}
+
+socket.onclose = () => {
+    console.log('disconnected');
+}
 let currentPlayer = 'X';
 let gameStatusMsg = 'Player X Turn';
 let winner = undefined;
@@ -90,6 +102,7 @@ function clickFillSquare(event) {
         event.target.classList.add(getSquareClass(currentPlayer));
         const idx = parseInt(event.target.dataset.location);
         boardScore[idx] = currentPlayer;
+        socket.send(JSON.stringify({idx, currentPlayer}));
         window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
         switchPlayer();
     }
