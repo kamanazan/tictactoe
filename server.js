@@ -6,20 +6,44 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({server});
 
+const player = []
+
 app.use(express.static('client'));
 
 wss.on('connection', (ws) => {
     console.log('New client connected');
+    if (player.length === 2) {
+        ws.send(JSON.stringify({error: 'Already has 2 players'}));
+        ws.close();
+    } else {
+        player.push(ws);
+        if (player.length === 1) {
+            ws.send(JSON.stringify({setup: {player:'X', turn: 'X'}}))
+        } else if(player.length === 2) {
+            ws.send(JSON.stringify({setup: {player: 'O', turn: 'X'}}));
+        }
+    }
+    
 
     ws.on('message', (msg) => {
-        console.log(`new msg ${typeof msg} of ${msg}`);
-        const msg2client = JSON.stringify(msg.toString())
-        wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-                console.log(`sending ${typeof msg2client} of ${msg2client}`)
-                client.send(msg.toString());
-            }
-        })
+        const msg2client = JSON.parse(msg.toString());
+        console.log({newMsg: msg2client});
+     
+        if ('move' in msg2client) {
+            console.log(`move command from ${ws}`)
+            player.forEach((client) => {
+                if (client.readyState !== WebSocket.OPEN) {
+                    console.log(`client ${client} is disconnected`);
+                } else {
+                    if (client !== ws) {
+                        console.log(`sending ${typeof msg2client} of ${msg2client} to ${ws}`);
+                        client.send(msg.toString());
+                    }
+                }
+               
+            })
+        }
+
     });
 
     ws.on('close', () => {
