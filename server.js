@@ -17,11 +17,14 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({error: 'Already has 2 players'}));
         ws.close();
     } else {
-        player.push(ws);
-        if (player.length === 1) {
+        if (player.length === 0) {
+            ws.id = 'X';
+            player.push(ws);
             ws.send(JSON.stringify({setup: {player:'X', turn: 'X'}}));
             console.log('sending setup player X');
-        } else if(player.length === 2) {
+        } else if(player.length === 1) {
+            ws.id = 'O';
+            player.push(ws);
             ws.send(JSON.stringify({setup: {player: 'O', turn: 'X'}}));
             console.log('sending setup player O');
         }
@@ -33,7 +36,7 @@ wss.on('connection', (ws) => {
         console.log({newMsg: msg2client});
      
         if ('move' in msg2client) {
-            player.forEach((client) => {
+            wss.clients.forEach((client) => {
                 if (client !== ws) {
                     client.send(msg.toString());
                 }
@@ -41,7 +44,7 @@ wss.on('connection', (ws) => {
         }
 
         if ('newGame' in msg2client) {
-            player.forEach((client) => {
+            wss.clients.forEach((client) => {
                 if (client !== ws) {
                     client.send(msg.toString());
                 }
@@ -55,7 +58,16 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
-        console.log('Client disconnected');
+        if (player[0].id === ws.id) {
+            const d = player.shift();
+            console.log(`Client ${d} disconnected`);
+        } else if (player[1].id === ws.id) {
+            const d = player.pop();
+            console.log(`Client ${d} disconnected`);
+        } else {
+            console.error('unknown client disconnected');
+        }
+        
     })
 })
 
