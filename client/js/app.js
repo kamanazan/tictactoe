@@ -8,11 +8,11 @@ const board = document.querySelector('.board');
 const squares = document.querySelectorAll('.square');
 const newGameBtn = document.querySelector('#newgame');
 const gameStatus = document.querySelector('#game-status');
-const socket = new WebSocket('ws://localhost:3000');
+const socket = new WebSocket(`ws://${window.location.host}`);
 
 let currentPlayer = '';
 let currentTurn = ''
-let gameStatusMsg = 'Player X Turn';
+let gameStatusMsg = 'Waiting Player';
 let winner = undefined;
 let boardScore = Array(9).fill(null)
 
@@ -27,6 +27,17 @@ function switchPlayer() {
     gameStatus.textContent = currentTurn ===  currentPlayer ? 'Your Turn' : 'Opponent Turn';
 }
 
+function newGame() {
+    squares.forEach(s => {
+        s.textContent = '';
+        s.className = 'square';
+    })
+    currentPlayer = undefined;
+    gameStatusMsg = 'New Game';
+    boardScore = Array(9).fill(null);
+    // window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
+    winner = undefined;
+}
 
 socket.onopen = () => {
     console.log('websocket connected');
@@ -61,6 +72,11 @@ socket.onmessage = (event) => {
         // window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
         switchPlayer();
     }
+
+    if ('newGame' in data) {
+        console.log({'RECV:NEWGAME':{...data}});
+        newGame();
+    }
 }
 
 socket.onclose = () => {
@@ -78,15 +94,8 @@ socket.onclose = () => {
 gameStatus.textContent = gameStatusMsg;
 
 newGameBtn.addEventListener('click', () => {
-    squares.forEach(s => {
-        s.textContent = '';
-        s.className = 'square';
-        currentPlayer = 'X';
-        gameStatusMsg = 'Player X Turn';
-        boardScore = Array(9).fill(null);
-        window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
-        winner = undefined;
-    })
+    newGame();
+    socket.send(JSON.stringify({newGame: true}));
 })
 
 
