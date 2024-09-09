@@ -17,6 +17,17 @@ let currentTurn = ''
 let gameStatusMsg = 'Waiting Player';
 let winner = undefined;
 let boardScore = Array(9).fill(null)
+let history = {
+    win: 0,
+    lose: 0,
+    draw: 0
+}
+
+if (!window.localStorage.getItem('history')) {
+    window.localStorage.setItem('history', JSON.stringify(history));
+} else {
+    history = JSON.parse(window.localStorage.getItem('history'));
+}
 
 function switchPlayer() {
     if (currentTurn === 'X') {
@@ -37,7 +48,6 @@ function newGame() {
     currentPlayer = undefined;
     gameStatusMsg = 'New Game';
     boardScore = Array(9).fill(null);
-    // window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
     winner = undefined;
     popup.classList.add('hide');
 }
@@ -69,7 +79,6 @@ socket.onmessage = (event) => {
         squareNode.textContent = sentPlayer;
         squareNode.classList.add(getSquareClass(sentPlayer));
         boardScore[sentIdx] = sentPlayer;
-        // window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
         switchPlayer();
     }
 
@@ -82,13 +91,6 @@ socket.onmessage = (event) => {
 socket.onclose = () => {
     console.log('disconnected');
 }
-
-
-// if (!window.localStorage.getItem('boardScore')) {
-//     window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
-// } else {
-//     boardScore = JSON.parse(window.localStorage.getItem('boardScore'));
-// }
 
 
 gameStatus.textContent = gameStatusMsg;
@@ -127,8 +129,15 @@ function checkWinner() {
         const [a, b, c] = loc;
         if (boardScore[a] && boardScore[a] === boardScore[b] &&  boardScore[a] === boardScore[c]) {
             winner = boardScore[a]
-            gameResult.textContent = winner === currentPlayer ? 'You Win!' : 'You Lose!';
+            if ( winner === currentPlayer){
+                gameResult.textContent = 'You Win!';
+                history.win += 1;
+            } else {
+                gameResult.textContent = 'You Lose!';
+                history.lose += 1;
+            }
             popup.classList.remove('hide');
+            window.localStorage.setItem('history', JSON.stringify(history));
             break;
         }
     }
@@ -136,6 +145,8 @@ function checkWinner() {
     if (!winner && boardIsFull) {
         winner = 'draw';
         gameResult.textContent = 'Draw!';
+        history.draw += 1;
+        window.localStorage.setItem('history', JSON.stringify(history));
         popup.classList.remove('hide');
     }
 }
@@ -147,7 +158,6 @@ function clickFillSquare(event) {
         const idx = parseInt(event.target.dataset.location);
         boardScore[idx] = currentPlayer;
         socket.send(JSON.stringify({move: {idx, currentPlayer}}));
-        // window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
         switchPlayer();
     }
 }
