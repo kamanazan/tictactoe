@@ -8,7 +8,9 @@ const board = document.querySelector('.board');
 const squares = document.querySelectorAll('.square');
 const newGameBtn = document.querySelector('#newgame');
 const gameStatus = document.querySelector('#game-status');
-const socket = new WebSocket(`ws://${window.location.host}`);
+const gameResult = document.querySelector('#game-result')
+const popup = document.querySelector('#popup');
+const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`);
 
 let currentPlayer = '';
 let currentTurn = ''
@@ -37,10 +39,11 @@ function newGame() {
     boardScore = Array(9).fill(null);
     // window.localStorage.setItem('boardScore', JSON.stringify(boardScore));
     winner = undefined;
+    popup.classList.add('hide');
 }
 
 socket.onopen = () => {
-    console.log('websocket connected');
+    console.log(`websocket connected to ${socket.url}`);
 }
 
 socket.onmessage = (event) => {
@@ -63,9 +66,6 @@ socket.onmessage = (event) => {
         console.log({'RECV:MOVE':{...data}});
         const { move: {idx: sentIdx, currentPlayer: sentPlayer}} = data;
         const squareNode = document.querySelector(`div.board span.square[data-location="${sentIdx}"]`);
-        if (!squareNode){
-            debugger;
-        }
         squareNode.textContent = sentPlayer;
         squareNode.classList.add(getSquareClass(sentPlayer));
         boardScore[sentIdx] = sentPlayer;
@@ -127,14 +127,16 @@ function checkWinner() {
         const [a, b, c] = loc;
         if (boardScore[a] && boardScore[a] === boardScore[b] &&  boardScore[a] === boardScore[c]) {
             winner = boardScore[a]
-            gameStatus.textContent = `Winner is ${winner}`;
+            gameResult.textContent = winner === currentPlayer ? 'You Win!' : 'You Lose!';
+            popup.classList.remove('hide');
             break;
         }
     }
     const boardIsFull = boardScore.every(b => b !== null);
     if (!winner && boardIsFull) {
         winner = 'draw';
-        gameStatus.textContent = 'Draw!';
+        gameResult.textContent = 'Draw!';
+        popup.classList.remove('hide');
     }
 }
 
