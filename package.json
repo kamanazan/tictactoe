@@ -4,12 +4,16 @@
   "description": "tic-tac-toe game with websocket",
   "main": "server.js",
   "scripts": {
+    "worker-deploy": "wrangler deploy",
+    "worker-dev": "wrangler dev",
+    "worker-start": "wrangler dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.19.2",
+    "wrangler": "^3.75.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

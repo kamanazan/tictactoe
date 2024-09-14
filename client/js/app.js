@@ -10,7 +10,10 @@ const newGameBtn = document.querySelector('#newgame');
 const gameStatus = document.querySelector('#game-status');
 const gameResult = document.querySelector('#game-result')
 const popup = document.querySelector('#popup');
-const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`);
+// const socket = new WebSocket('http://127.0.0.1:8787');
+const wss = document.location.protocol === "http:" ? "ws://" : "wss://";
+const roomname = 'Test';
+let socket= new WebSocket(wss + '127.0.0.1:8787' + "/api/room/" + roomname + "/websocket");
 
 let currentPlayer = '';
 let currentTurn = ''
@@ -22,11 +25,19 @@ let history = {
     lose: 0,
     draw: 0
 }
+let playerId = null;
 
 if (!window.localStorage.getItem('history')) {
     window.localStorage.setItem('history', JSON.stringify(history));
 } else {
     history = JSON.parse(window.localStorage.getItem('history'));
+}
+
+if (!window.localStorage.getItem('playerId')) {
+    playerId =  window.crypto.randomUUID();
+    window.localStorage.setItem('playerId', playerId);
+} else {
+    playerId = window.localStorage.getItem('playerId');
 }
 
 function switchPlayer() {
@@ -53,7 +64,8 @@ function newGame() {
 }
 
 socket.onopen = () => {
-    console.log(`websocket connected to ${socket.url}`);
+    socket.send(JSON.stringify({join: playerId}))
+    console.log(`${playerId} joining ${socket.url}`);
 }
 
 socket.onmessage = (event) => {
@@ -63,7 +75,7 @@ socket.onmessage = (event) => {
     } catch(error) {
         console.log({error});
     }
-
+    console.log({newMessage: {...data}});
     if ('setup' in data) {
         console.log({'RECV:SETUP':{...data}});
         const { setup: {player, turn}} = data;
@@ -74,7 +86,7 @@ socket.onmessage = (event) => {
 
     if ('move' in data) {
         console.log({'RECV:MOVE':{...data}});
-        const { move: {idx: sentIdx, currentPlayer: sentPlayer}} = data;
+        const { move: {idx: sentIdx, player: sentPlayer}} = data;
         const squareNode = document.querySelector(`div.board span.square[data-location="${sentIdx}"]`);
         squareNode.textContent = sentPlayer;
         squareNode.classList.add(getSquareClass(sentPlayer));
@@ -96,7 +108,6 @@ socket.onclose = () => {
 gameStatus.textContent = gameStatusMsg;
 
 newGameBtn.addEventListener('click', () => {
-    newGame();
     socket.send(JSON.stringify({newGame: true}));
 })
 
@@ -157,7 +168,7 @@ function clickFillSquare(event) {
         event.target.classList.add(getSquareClass(currentPlayer));
         const idx = parseInt(event.target.dataset.location);
         boardScore[idx] = currentPlayer;
-        socket.send(JSON.stringify({move: {idx, currentPlayer}}));
+        socket.send(JSON.stringify({move: {idx, player: currentPlayer}}));
         switchPlayer();
     }
 }
