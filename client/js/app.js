@@ -21,6 +21,8 @@ let history = {
     draw: 0
 }
 let playerId = null;
+let currentWebSocket = null;
+let canMove = false;
 
 gameStatus.textContent = 'Join a room';
 
@@ -38,15 +40,22 @@ if (!window.localStorage.getItem('playerId')) {
 }
 
 newGameBtn.addEventListener('click', () => {
-    socket.send(JSON.stringify({newGame: true}));
+    if (!currentWebSocket) {
+        console.error('disconnected from websocket')
+        return false
+    }
+
+    currentWebSocket.send(JSON.stringify({newGame: true}));
 });
 
 joinGameBtn.addEventListener('click', () => {
     if (!gameName.value) {
         gameStatus.textContent = 'Game name is empty!'
     } else {
-        gameStatus.textContent = `Joining ${gameName.value}`
-        joinGame();
+        const name = gameName.value;
+        gameStatus.textContent = `Joining ${name}`
+        joinGame(name);
+        gameName.value = '';
     }
 });
 
@@ -81,6 +90,7 @@ function switchPlayer() {
     } else {
         console.error(`unknown turn ${currentTurn}`)
     }
+    canMove = currentPlayer === currentTurn;
     gameStatus.textContent = currentTurn ===  currentPlayer ? 'Your Turn' : 'Opponent Turn';
 }
 
@@ -137,12 +147,16 @@ function checkWinner() {
 }
 
 function clickFillSquare(event) {
-    if (!event.target.textContent && !winner && (currentPlayer === currentTurn)) {
+    if (!currentWebSocket) {
+        console.error('disconnected from websocket')
+        return false
+    }
+    if (!event.target.textContent && !winner && canMove) {
         event.target.textContent = currentPlayer;
         event.target.classList.add(getSquareClass(currentPlayer));
         const idx = parseInt(event.target.dataset.location);
         boardScore[idx] = currentPlayer;
-        socket.send(JSON.stringify({move: {idx, player: currentPlayer}}));
+        currentWebSocket.send(JSON.stringify({move: {idx, player: currentPlayer}}));
         switchPlayer();
     }
 }
@@ -150,6 +164,7 @@ function clickFillSquare(event) {
 function joinGame() {
     let socket= new WebSocket(wss + '127.0.0.1:8787' + "/api/room/" + gameName.value + "/websocket");
     socket.onopen = () => {
+        currentWebSocket = socket;
         socket.send(JSON.stringify({join: playerId}))
         console.log(`${playerId} joining ${socket.url}`);
     }
@@ -159,19 +174,22 @@ function joinGame() {
         try {
             data = JSON.parse(event.data);
         } catch(error) {
-            console.log({error});
+            console.error({error});
         }
         console.log({newMessage: {...data}});
         if ('setup' in data) {
-            console.log({'RECV:SETUP':{...data}});
+            // console.log({'RECV:SETUP':{...data}});
             const { setup: {player, turn}} = data;
             currentPlayer = player;
             currentTurn = turn;
-            gameStatus.textContent = currentTurn ===  currentPlayer ? 'Your Turn' : 'Opponent Turn';
+            gameStatus.textContent = 'Waiting for player';
+            canMove = currentPlayer === currentTurn;
+            board.classList.remove('hide');
+            roomForm.classList.add('hide');
         }
     
         if ('move' in data) {
-            console.log({'RECV:MOVE':{...data}});
+            // console.log({'RECV:MOVE':{...data}});
             const { move: {idx: sentIdx, player: sentPlayer}} = data;
             const squareNode = document.querySelector(`div.board span.square[data-location="${sentIdx}"]`);
             squareNode.textContent = sentPlayer;
@@ -181,15 +199,21 @@ function joinGame() {
         }
     
         if ('newGame' in data) {
-            console.log({'RECV:NEWGAME':{...data}});
+            // console.log({'RECV:NEWGAME':{...data}});
             newGame();
+        }
+
+        if ('ready' in data) {
+            gameStatus.textContent = currentTurn ===  currentPlayer ? 'Your Turn' : 'Opponent Turn';
+            canMove = currentPlayer === currentTurn;
         }
     }
     
     socket.onclose = ({ data }) => {
+        currentWebSocket = null;
         board.classList.add('hide');
         roomForm.classList.remove('hide');
-
+        gameStatus.textContent = 'Join a room';
         console.log('disconnected');
     }
 }

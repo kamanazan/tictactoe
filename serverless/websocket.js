@@ -100,8 +100,15 @@ export class GameMatch {
     async handleSession(webSocket) {
         try {
             console.log('handling connection');
-            this.state.acceptWebSocket(webSocket);
-            this.players.set(webSocket, {});
+            if (this.players.size >= 2) {
+                console.log('rejecting because full');
+                webSocket.send({error: 'Player is full'});
+                webSocket.close(1009, 'Player is full');
+            } else {
+                this.state.acceptWebSocket(webSocket);
+                this.players.set(webSocket, {});
+            }
+     
         } catch (err) {
             console.log({error: {msg: 'error handling session', err: err.stack}});
         }
@@ -114,18 +121,17 @@ export class GameMatch {
             console.log({newMsg: {...data}});
             if('join' in data) {
                 console.log('new connection joined');
-                if (this.players.length >= 2) {
-                    console.log('rejecting because full');
-                    webSocket.send({error: 'Player is full'});
-                    webSocket.close(1009, 'Player is full');
-                } else {
-                    const player = this.players.get(webSocket);
-                    player.playerId = data.join;
-                    const slotIdx = (Math.floor(Math.random() * (this.slot.length)));
-                    player.slot = this.slot[slotIdx];
-                    this.slot.splice(slotIdx, 1);
-                    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), playerId: player.playerId, slot: player.slot });
-                    webSocket.send(JSON.stringify({setup: {player: player.slot, turn: 'X'}}));
+                // check if we should reject or accept new connection as player
+                // and if it is full we send ready command so players can start playing
+                const player = this.players.get(webSocket);
+                player.playerId = data.join;
+                const slotIdx = (Math.floor(Math.random() * (this.slot.length)));
+                player.slot = this.slot[slotIdx];
+                this.slot.splice(slotIdx, 1);
+                webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), playerId: player.playerId, slot: player.slot });
+                webSocket.send(JSON.stringify({setup: {player: player.slot, turn: 'X'}}));
+                if (this.players.size === 2) {
+                   this.broadcast({ready: true});
                 }
             }
 
@@ -146,6 +152,7 @@ export class GameMatch {
                     this.slot.splice(slotIdx, 1);
                     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), slot: player.slot });
                     webSocket.send(JSON.stringify({setup: {player: player.slot, turn: 'X'}}));
+                    webSocket.send(JSON.stringify({ready: true}));
                 })
             }
         } catch (err) {
@@ -154,7 +161,7 @@ export class GameMatch {
         
     }
 
-    async webSocketClose(ws, code, reason, wasClean) {
+    async webSocketClose(ws) {
        this.players.delete(ws);
        this.broadcast('stop');
     }
