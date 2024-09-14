@@ -1,4 +1,5 @@
 import { getSquareClass } from "./utils.js";
+import { WEBSOCKET_URL } from "./config.js";
 
 const board = document.querySelector('.board');
 const squares = document.querySelectorAll('.square');
@@ -162,7 +163,7 @@ function clickFillSquare(event) {
 }
 
 function joinGame() {
-    let socket= new WebSocket(wss + '127.0.0.1:8787' + "/api/room/" + gameName.value + "/websocket");
+    let socket= new WebSocket(`${WEBSOCKET_URL}/api/room/${gameName.value}/websocket`);
     socket.onopen = () => {
         currentWebSocket = socket;
         socket.send(JSON.stringify({join: playerId}))
