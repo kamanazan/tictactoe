@@ -4,13 +4,19 @@
 <head>
     <title>Tic Tac Toe</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/gh-fork-ribbon.min.css">
 </head>
 
 <body>
+    <a class="github-fork-ribbon" href="https://github.com/kamanazan/tictactoe" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
     <div class="text-container">
         <p id="game-status"></p>
     </div>
-    <div class="board">
+    <form id="room-form" action="#">
+        <p>Enter a public room:</p>
+        <input id="game-name" placeholder="game name" class="game-text"><button id="join-game" class="game-text">Join</button>
+    </form>
+    <div class="board hide">
         <span class="square" data-location="0"></span>
         <span class="square" data-location="1"></span>
         <span class="square" data-location="2"></span>
@@ -25,14 +31,10 @@
         <div class="popup-msg">
             <span id="game-result"></span>
         </div>
-        <button id="newgame">New Game</button>
+        <button id="newgame" class="game-text">New Game</button>
     </div>
     
 
-    <script src="js/app.js"></script>
+    <script src="js/app.js" type="module"></script>
 </body>
-<footer>
-    <a href="https://github.com/kamanazan/tictactoe">Check the code here</a>
-</footer>
-
 </html>

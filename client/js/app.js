@@ -1,23 +1,18 @@
-const mutationConfig = { 
-    attributes: true,
-    childList: true,
-    subtree: true 
-};
+import { getSquareClass } from "./utils.js";
 
 const board = document.querySelector('.board');
 const squares = document.querySelectorAll('.square');
 const newGameBtn = document.querySelector('#newgame');
 const gameStatus = document.querySelector('#game-status');
-const gameResult = document.querySelector('#game-result')
+const gameResult = document.querySelector('#game-result');
+const gameName = document.querySelector('#game-name')
+const joinGameBtn = document.querySelector('#join-game');
 const popup = document.querySelector('#popup');
-// const socket = new WebSocket('http://127.0.0.1:8787');
+const roomForm = document.querySelector('#room-form');
 const wss = document.location.protocol === "http:" ? "ws://" : "wss://";
-const roomname = 'Test';
-let socket= new WebSocket(wss + '127.0.0.1:8787' + "/api/room/" + roomname + "/websocket");
 
 let currentPlayer = '';
 let currentTurn = ''
-let gameStatusMsg = 'Waiting Player';
 let winner = undefined;
 let boardScore = Array(9).fill(null)
 let history = {
@@ -26,6 +21,8 @@ let history = {
     draw: 0
 }
 let playerId = null;
+
+gameStatus.textContent = 'Join a room';
 
 if (!window.localStorage.getItem('history')) {
     window.localStorage.setItem('history', JSON.stringify(history));
@@ -39,6 +36,42 @@ if (!window.localStorage.getItem('playerId')) {
 } else {
     playerId = window.localStorage.getItem('playerId');
 }
+
+newGameBtn.addEventListener('click', () => {
+    socket.send(JSON.stringify({newGame: true}));
+});
+
+joinGameBtn.addEventListener('click', () => {
+    if (!gameName.value) {
+        gameStatus.textContent = 'Game name is empty!'
+    } else {
+        gameStatus.textContent = `Joining ${gameName.value}`
+        joinGame();
+    }
+});
+
+squares.forEach(s => {
+    s.addEventListener('click', clickFillSquare);
+    const idx = parseInt(s.dataset.location);
+    if (boardScore[idx]) {
+        const locValue = boardScore[idx];
+        s.textContent = locValue;
+        s.classList.add(getSquareClass(locValue));
+    }
+});
+
+let observer = new MutationObserver(records => {
+    checkWinner();
+})
+
+observer.observe(
+    board, 
+    { 
+        attributes: true,
+        childList: true,
+        subtree: true 
+    }
+);
 
 function switchPlayer() {
     if (currentTurn === 'X') {
@@ -57,72 +90,13 @@ function newGame() {
         s.className = 'square';
     })
     currentPlayer = undefined;
-    gameStatusMsg = 'New Game';
+    gameStatus.textContent = 'New Game';
     boardScore = Array(9).fill(null);
     winner = undefined;
     popup.classList.add('hide');
 }
 
-socket.onopen = () => {
-    socket.send(JSON.stringify({join: playerId}))
-    console.log(`${playerId} joining ${socket.url}`);
-}
 
-socket.onmessage = (event) => {
-    let data
-    try {
-        data = JSON.parse(event.data);
-    } catch(error) {
-        console.log({error});
-    }
-    console.log({newMessage: {...data}});
-    if ('setup' in data) {
-        console.log({'RECV:SETUP':{...data}});
-        const { setup: {player, turn}} = data;
-        currentPlayer = player;
-        currentTurn = turn;
-        gameStatus.textContent = currentTurn ===  currentPlayer ? 'Your Turn' : 'Opponent Turn';
-    }
-
-    if ('move' in data) {
-        console.log({'RECV:MOVE':{...data}});
-        const { move: {idx: sentIdx, player: sentPlayer}} = data;
-        const squareNode = document.querySelector(`div.board span.square[data-location="${sentIdx}"]`);
-        squareNode.textContent = sentPlayer;
-        squareNode.classList.add(getSquareClass(sentPlayer));
-        boardScore[sentIdx] = sentPlayer;
-        switchPlayer();
-    }
-
-    if ('newGame' in data) {
-        console.log({'RECV:NEWGAME':{...data}});
-        newGame();
-    }
-}
-
-socket.onclose = () => {
-    console.log('disconnected');
-}
-
-
-gameStatus.textContent = gameStatusMsg;
-
-newGameBtn.addEventListener('click', () => {
-    socket.send(JSON.stringify({newGame: true}));
-})
-
-
-
-function getSquareClass(cp) {
-    switch (cp) {
-        case 'X':
-            return 'cross';
-        case 'O':
-            return 'circle';
-        default:
-            break;
-    }
-}
 
 function checkWinner() {
     const winningLocs = [
@@ -173,18 +147,50 @@ function clickFillSquare(event) {
     }
 }
 
-squares.forEach(s => {
-    s.addEventListener('click', clickFillSquare);
-    const idx = parseInt(s.dataset.location);
-    if (boardScore[idx]) {
-        const locValue = boardScore[idx];
-        s.textContent = locValue;
-        s.classList.add(getSquareClass(locValue));
+function joinGame() {
+    let socket= new WebSocket(wss + '127.0.0.1:8787' + "/api/room/" + gameName.value + "/websocket");
+    socket.onopen = () => {
+        socket.send(JSON.stringify({join: playerId}))
+        console.log(`${playerId} joining ${socket.url}`);
     }
-});
+    
+    socket.onmessage = (event) => {
+        let data
+        try {
+            data = JSON.parse(event.data);
+        } catch(error) {
+            console.log({error});
+        }
+        console.log({newMessage: {...data}});
+        if ('setup' in data) {
+            console.log({'RECV:SETUP':{...data}});
+            const { setup: {player, turn}} = data;
+            currentPlayer = player;
+            currentTurn = turn;
+            gameStatus.textContent = currentTurn ===  currentPlayer ? 'Your Turn' : 'Opponent Turn';
+        }
+    
+        if ('move' in data) {
+            console.log({'RECV:MOVE':{...data}});
+            const { move: {idx: sentIdx, player: sentPlayer}} = data;
+            const squareNode = document.querySelector(`div.board span.square[data-location="${sentIdx}"]`);
+            squareNode.textContent = sentPlayer;
+            squareNode.classList.add(getSquareClass(sentPlayer));
+            boardScore[sentIdx] = sentPlayer;
+            switchPlayer();
+        }
+    
+        if ('newGame' in data) {
+            console.log({'RECV:NEWGAME':{...data}});
+            newGame();
+        }
+    }
+    
+    socket.onclose = ({ data }) => {
+        board.classList.add('hide');
+        roomForm.classList.remove('hide');
 
-let observer = new MutationObserver(records => {
-    checkWinner();
-})
+        console.log('disconnected');
+    }
+}
 
-observer.observe(board, mutationConfig)

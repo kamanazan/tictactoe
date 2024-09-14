@@ -41,7 +41,7 @@ body {
     color: blue;
 }
 
-#newgame {
+.game-text {
     font-family: Roboto;
     font-weight: normal;
     font-size: 64px;
